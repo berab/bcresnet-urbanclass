@@ -108,7 +108,6 @@ class TransitionBlock(nn.Module):
         out = self.swish(out)
         out = self.conv1x1_2(out)
         out = self.channel_drop(out)
-        #############################
 
         out = auxilary + out
         out = self.relu(out)
@@ -153,7 +152,7 @@ class BCResNet(torch.nn.Module):
         out = self.block2_1(out)
         out = self.block2_2(out)
 
-        print('BLOCK3 INPUT SHAPE:', out.shape)
+        #print('BLOCK3 INPUT SHAPE:', out.shape)
         out = self.block3_1(out)
         out = self.block3_2(out)
         out = self.block3_3(out)
