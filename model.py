@@ -47,22 +47,18 @@ class BroadcastedBlock(nn.Module):
         identity = x
 
         # f2
-        ##########################
         out = self.freq_dw_conv(x)
         out = self.ssn1(out)
-        ##########################
 
         auxilary = out
         out = out.mean(2, keepdim=True)  # frequency average pooling
 
         # f1
-        ############################
         out = self.temp_dw_conv(out)
         out = self.bn(out)
         out = self.swish(out)
         out = self.conv1x1(out)
         out = self.channel_drop(out)
-        ############################
 
         out = out + identity + auxilary
         out = self.relu(out)
@@ -98,18 +94,15 @@ class TransitionBlock(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         # f2
-        #############################
         out = self.conv1x1_1(x)
         out = self.bn1(out)
         out = self.relu(out)
         out = self.freq_dw_conv(out)
         out = self.ssn(out)
-        #############################
         auxilary = out
         out = out.mean(2, keepdim=True)  # frequency average pooling
 
         # f1
-        #############################
         out = self.temp_dw_conv(out)
         out = self.bn2(out)
         out = self.swish(out)
