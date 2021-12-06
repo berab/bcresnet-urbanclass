@@ -6,8 +6,8 @@ from model import BCResNet as Net
 from urbansoundDataset import UrbanSoundDataset
 
 BATCH_SIZE = 128
-EPOCHS = 10
-LEARNING_RATE = 0.001
+EPOCHS = 11
+LEARNING_RATE = 0.1
 ANNOTATIONS_FILE = './UrbanSound8K/metadata/UrbanSound8K.csv'
 AUDIO_DIR = './UrbanSound8K/audio'
 SAMPLE_RATE = 16000
@@ -35,6 +35,22 @@ def train_single_epoch(model, data_loader, loss_fn, optimiser, device):
 
     print(f"loss: {loss.item()}")
 
+def mixup(inputs, labels, alpha=1.0, device='cuda'):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1
+
+    batch_size = x.size()[0]
+    if device == 'cuda':
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
 
 def train(model, data_loader, loss_fn, optimiser, device, epochs):
     for i in range(epochs):
@@ -61,7 +77,7 @@ if __name__ == "__main__":
     )
     # hop_length is usually n_fft/2
     # ms = mell_spectogram(signal)
-
+    
     usd = UrbanSoundDataset(ANNOTATIONS_FILE,
                             AUDIO_DIR,
                             mel_spectrogram,
@@ -73,7 +89,7 @@ if __name__ == "__main__":
 
     # construct model and assign it to device
     net = Net().to(device)
-    print(net)
+    # print(net)
 
     # initialise loss funtion + optimiser
     loss_fn = nn.CrossEntropyLoss()
