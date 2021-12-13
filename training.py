@@ -4,15 +4,18 @@ from torch.utils.data import DataLoader
 import torchaudio.transforms as tf
 from model import BCResNet as Net
 from urbansoundDataset import UrbanSoundDataset
+import numpy as np
+from torch.autograd import Variable
 
 BATCH_SIZE = 128
-EPOCHS = 11
+EPOCHS = 10
 LEARNING_RATE = 0.1
 ANNOTATIONS_FILE = './UrbanSound8K/metadata/UrbanSound8K.csv'
 AUDIO_DIR = './UrbanSound8K/audio'
 SAMPLE_RATE = 16000
 NUM_SAMPLES = 32500  # we are getting one second from the expected audio (since sr = 22050 as well)
 NUM_LABELS = 10
+ALPHA = 0.3
 
 def create_data_loader(train_data, batch_size):
     train_dataloader = DataLoader(train_data, batch_size=batch_size)
@@ -22,11 +25,14 @@ def create_data_loader(train_data, batch_size):
 def train_single_epoch(model, data_loader, loss_fn, optimiser, device):
     for input, target in data_loader:
         input, target = input.to(device), target.to(device)
+        input, target_a, target_b, lam = mixup(input, target,
+                                                       ALPHA, device)
 
+        input, target_a, target_b = map(Variable, (input,
+                                                      target_a, target_b))
         # calculate loss
         prediction = model(input)
-
-        loss = loss_fn(prediction.reshape(prediction.shape[0],prediction.shape[1]), target)
+        loss = mixup_criterion(loss_fn, prediction.reshape(prediction.shape[0],prediction.shape[1]), target_a, target_b, lam)
 
         # backpropagate error and update weights
         optimiser.zero_grad()
@@ -35,7 +41,7 @@ def train_single_epoch(model, data_loader, loss_fn, optimiser, device):
 
     print(f"loss: {loss.item()}")
 
-def mixup(inputs, labels, alpha=1.0, device='cuda'):
+def mixup(x, y, alpha=1.0, device='cuda'):
     '''Returns mixed inputs, pairs of targets, and lambda'''
     if alpha > 0:
         lam = np.random.beta(alpha, alpha)
@@ -43,22 +49,23 @@ def mixup(inputs, labels, alpha=1.0, device='cuda'):
         lam = 1
 
     batch_size = x.size()[0]
-    if device == 'cuda':
-        index = torch.randperm(batch_size).cuda()
-    else:
-        index = torch.randperm(batch_size)
+    index = torch.randperm(batch_size).to(device)
+
 
     mixed_x = lam * x + (1 - lam) * x[index, :]
     y_a, y_b = y, y[index]
     return mixed_x, y_a, y_b, lam
+
+def mixup_criterion(loss_fn, pred, y_a, y_b, lam):
+    return lam * loss_fn(pred, y_a) + (1 - lam) * loss_fn(pred, y_b)
 
 def train(model, data_loader, loss_fn, optimiser, device, epochs):
     for i in range(epochs):
         print(f"Epoch {i+1}")
         train_single_epoch(model, data_loader, loss_fn, optimiser, device)
         print("---------------------------")
+        
     print("Finished training")
-
 
 if __name__ == "__main__":
 
